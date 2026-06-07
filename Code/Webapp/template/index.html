@@ -1,0 +1,1249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>VLM Search & Retrieve</title>
+<style>
+    :root { color-scheme: dark; }
+    body {
+        background-color: #0f1115;
+        color: #e6e6e6;
+        margin: 0;
+        height: 100vh;
+        overflow: hidden;
+        font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji", "Segoe UI Emoji";
+    }
+    .sidebar {
+    width: 360px;
+    height: 100vh;
+    box-sizing: border-box;
+    padding: 20px 16px;
+    border-right: 1px solid rgba(255,255,255,0.08);
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    overflow: hidden;
+    }
+    .search-row { 
+      display: flex; 
+      gap: 10px; 
+    }
+    .search-input {
+        flex: 1;
+        padding: 10px 12px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: #151821;
+        color: #fff;
+        outline: none;
+    }
+    .search-highlight{
+      padding: 0 4px;
+      border-radius: 6px;
+      font-weight: 700;
+      background: rgba(255, 50, 9, 0.28);
+      border: 1px solid rgba(59,130,246,0.45);
+    }
+    .btn {
+        padding: 10px 14px;
+        border-radius: 10px;
+        border: 1px solid rgba(255,255,255,0.12);
+        background: #1e2430;
+        color: #fff;
+        cursor: pointer;
+    }
+    .all-items { 
+      margin-top: 6px; 
+    }
+    .all-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 8px 10px;
+        border-radius: 10px;
+        cursor: pointer;
+    }
+    .all-item:hover { 
+      background: rgba(255,255,255,0.06); 
+    }
+    .item-icon {
+        width: 28px;
+        height: 22px;
+        border-radius: 6px;
+        background: rgba(255,255,255,0.10);
+        display: grid;
+        place-items: center;
+        font-size: 12px;
+        font-weight: 800;
+        color: #fff;
+        flex: 0 0 auto;
+    }
+    .item-name {
+        font-size: 14px;
+        opacity: 0.95;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
+    }
+    .btn:hover { 
+      background: #263044; 
+    }
+    .tray-title { 
+      display: flex; 
+      align-items: center; 
+      justify-content: space-between; 
+      font-weight: 600; 
+    }
+    .items-table {
+        width: 100%;  
+        border-collapse: collapse;
+        margin-top: 6px;
+    }
+    .items-table th, .items-table td { 
+      border-bottom: 1px solid rgba(255,255,255,0.06); 
+      padding: 10px 8px; 
+      text-align: left; 
+    }
+    .items-list {
+    flex: 1;
+    min-height: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    border: 1px solid rgba(255,255,255,0.06);
+    border-radius: 10px;
+    background: #10131a;
+    padding: 8px;
+    }
+    .hl { 
+      background: #ffe36e; 
+      color: #222; 
+      cursor: pointer; 
+    }
+    .no-items { 
+      opacity: 0.7; 
+      font-style: italic; 
+      padding: 12px; 
+    }
+    .lists-header { 
+      font-weight: 600; 
+      margin: 4px 0 2px 2px; 
+      opacity: .9; 
+    }
+    .tray-section { 
+      border: 1px solid rgba(255,255,255,0.06); 
+      border-radius: 10px; 
+      padding: 10px; 
+      margin: 8px; 
+      background: #0f1218; 
+    }
+    .tray-section .header { 
+      display: flex; 
+      justify-content: space-between; 
+      align-items: center; 
+      margin-bottom: 6px; 
+    }
+    .main { 
+      flex: 1; 
+      display: flex; 
+      align-items: center; 
+      justify-content: center; 
+      position: relative; 
+    }
+    .stack-container{
+        position: relative;
+        width: 100%;
+        height: 100%;
+        max-width: 100%;
+        overflow: hidden;
+        perspective: 2000px;
+    }
+    .card {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform-style: preserve-3d;
+        transform-origin: center center;
+        transition: transform 0.5s ease, opacity 0.5s ease;
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 40px 80px rgba(0,0,0,0.55);
+        background: #0b0d12;
+    }
+    .card img { 
+      display: block; 
+      width: 100%; 
+      height: auto; 
+    }
+    .tray-badge {
+        position: absolute; 
+        top: 18px; 
+        left: 18px; 
+        background: rgba(0,0,0,0.6); 
+        padding: 6px 10px; 
+        border-radius: 999px; 
+        font-size: 14px; 
+        border: 1px solid rgba(255,255,255,0.12);
+    }
+    .layout-grid{
+        display: grid;
+        grid-template-columns: 360px 1fr 1fr;
+        height: 100vh;
+    }
+    .middle-column{
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      overflow: hidden;
+    }
+    .tray-preview{
+      height: 100vh;
+      width: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      overflow: hidden;
+      padding-right: 16px;
+    }
+    .tray-preview .stack-container{
+      width: 92%;      
+      height: 100%;
+      margin-left: auto;
+    }
+    .right-column{
+      padding: 20px 16px;
+      border-left: 1px solid rgba(255,255,255,0.08);
+      display: flex;
+      align-items: flex-start;
+      justify-content: flex-start;
+    }
+    .qty-label{
+      font-weight: 600;
+      opacity: .9;
+      margin-bottom: 10px;
+    }
+    .qty-hint{
+      margin-top: 8px;
+      opacity: .75;
+      font-size: 13px;
+    }
+    .qty-header{
+      margin-bottom: 12px;
+    }
+    .qty-name{
+      font-weight: 700;
+      font-size: 16px;
+    }
+    .qty-available{
+      font-size: 13px;
+      opacity: .75;
+      margin-top: 4px;
+    }
+    .qty-panel{
+      width: 100%;
+      max-width: 420px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: #10131a;
+      border-radius: 14px;
+      padding: 16px;
+    }
+    .qty-stepper{
+      display: grid;
+      grid-template-columns: 60px 1fr 60px;
+      gap: 10px;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    .qty-btn{
+      height: 56px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      font-size: 26px;
+      font-weight: 800;
+      cursor: pointer;
+      color: #fff;
+    }
+    .qty-minus{
+      background: rgba(239, 68, 68, 0.35);
+    }
+    .qty-plus{
+      background: rgba(34, 197, 94, 0.35);
+    }
+    .qty-value{
+      height: 56px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      background: rgba(255,255,255,0.08);
+      display: grid;
+      place-items: center;
+      font-size: 22px;
+      font-weight: 800;
+    }
+    .qty-actions{
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      margin-top: 12px;
+    }
+    .qty-action{
+      height: 48px;
+      border-radius: 12px;
+      border: 1px solid rgba(255,255,255,0.10);
+      color: #fff;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    .qty-add{
+      background: rgba(34, 197, 94, 0.40);
+    }
+    .qty-remove{
+      background: rgba(239, 68, 68, 0.40);
+    }
+    .qty-action:hover{
+      filter: brightness(1.1);
+    }
+    .qty-action:disabled{
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+    .qty-section-row{
+      margin-top: 6px;
+      display: flex;
+      gap: 8px;
+      align-items: baseline;
+      font-size: 13px;
+      opacity: .85;
+    }
+    .qty-section-label{ 
+      opacity: .8; 
+    }
+    .qty-section-value{ 
+      font-weight: 700; 
+    }
+    .section-input{
+      width: 100%;
+      padding: 8px 10px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: #151821;
+      color: #fff;
+      outline: none;
+    }
+    .error-box{
+      display: none;
+      margin: 10px 0 12px 0;
+      padding: 10px 12px;
+      border-radius: 10px;
+      border: 1px solid rgba(239, 68, 68, 0.45);
+      background: rgba(239, 68, 68, 0.18);
+      color: #ffe3e3;
+      font-weight: 700;
+      line-height: 1.35;
+    }
+    .error-box .small{
+      display: block;
+      margin-top: 6px;
+      font-weight: 600;
+      opacity: .9;
+      font-size: 12px;
+    }
+    /* Modal */
+    .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.75);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    }
+
+    .modal {
+        width: 60vw;
+        max-width: 900px;
+        min-height: 40vh;
+        background: #151821;
+        border: 1px solid rgba(255,255,255,0.12);
+        border-radius: 18px;
+        padding: 28px;
+        box-shadow: 0 40px 100px rgba(0,0,0,0.65);
+    }
+    #confirmModal .modal {
+        width: 65vw;
+        max-width: 950px;
+        min-height: 45vh;
+    }
+    .modal textarea { 
+      width: 100%; 
+      height: 260px; 
+      background: #0f1420; 
+      color: #fff; 
+      border: 1px solid rgba(255,255,255,0.12); 
+      border-radius: 8px; 
+      padding: 10px; 
+    }
+    .modal .actions {
+        margin-top: 40px;
+        display: flex;
+        justify-content: center;
+        gap: 30px;
+    }
+    .modal { 
+      position: relative; 
+    }
+    .modal-x{
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+      border: 1px solid rgba(255,255,255,0.12);
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      cursor: pointer;
+      font-size: 16px;
+      line-height: 1;
+    }
+    .modal-x:hover{ 
+      background: rgba(255,255,255,0.10); 
+    }
+    .modal .actions .btn {
+        height: 56px;
+        font-size: 16px;
+        font-weight: 800;
+    }
+    #confirmMsg{
+      font-size: 22px;
+      line-height: 1.5;
+      font-weight: 600;
+      margin-top: 20px;
+    }
+    #confirmModal .actions .btn{
+      min-width: 220px;
+      height: 70px;
+      font-size: 18px;
+      font-weight: 900;
+      border-radius: 16px;
+    }
+    #confirmProceed{
+  background: rgba(34,197,94,0.5);
+    }
+    #confirmCancel{
+      background: rgba(239,68,68,0.4);
+    }
+    .confirm-highlight{
+      font-weight: 900;
+      font-size: 24px;
+      color: #ffffff;
+    }
+    #statusMsg{
+      font-size: 22px;
+      line-height: 1.5;
+      font-weight: 600;
+      margin-top: 22px;
+    }
+    #statusModal .actions{
+      margin-top: 40px;
+      display: flex;
+      justify-content: center;
+    }
+    #statusModal .actions .btn{
+      min-width: 240px;
+      height: 70px;
+      font-size: 18px;
+      font-weight: 900;
+      border-radius: 16px;
+    }
+</style>
+</head>
+<body>   
+    <div class="layout-grid">
+      <aside class="sidebar">
+        <form id="searchForm" class="search-row">
+          <input id="searchInput"
+                class="search-input"
+                type="text"
+                placeholder="Search item"
+                autocomplete="off" />
+        </form>
+        <div class="tray-title">
+          <div id="trayTitle">Tray</div>
+        </div>
+        <div class="items-list">
+          <div class="lists-header">All components</div>
+          <div id="allItemsContainer"></div>
+          <div class="lists-header">Current tray</div>
+          <div id="currentContainer"></div>
+        </div>
+      </aside>
+      <div class="middle-column">
+        <div class="tray-preview">
+          <div class="stack-container" id="stack"></div>
+        </div>
+        <div class="middle-bottom">
+        </div>
+      </div>
+      <div class="right-column">
+        <div class="qty-panel">
+          <div class="qty-header">
+            <div class="qty-name" id="selectedName">No component selected</div>
+            <div class="qty-available" id="selectedAvailable"></div>
+          </div>
+          <div class="qty-stepper">
+            <button class="qty-btn qty-minus" id="qtyMinus" type="button">−</button>
+            <div class="qty-value" id="qtyValue">0</div>
+            <button class="qty-btn qty-plus" id="qtyPlus" type="button">+</button>
+          </div>
+          <div class="qty-actions">
+            <button class="qty-action qty-add" id="btnStore" type="button">Store</button>
+            <button class="qty-action qty-remove" id="btnRetrieve" type="button">Retrieve</button>
+          </div>
+          <div class="qty-section-row">
+            <div class="qty-section-label">Tray Section:</div>
+            <div class="qty-section-value" id="selectedSection">—</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script id="data-trays" type="application/json">{{ trays|tojson }}</script>
+    <script id="data-items" type="application/json">{{ tray_items|tojson }}</script>
+
+    <div class="modal-backdrop" id="modal">
+      <div class="modal">
+        <h3 id="modalTitle" style="margin-top:0">Edit tray items</h3>
+        <p style="opacity:.8;margin-top:4px">One item per line.</p>
+        <div class="error-box" id="editErrorBox" role="alert" aria-live="polite"></div>
+        <textarea id="editTextarea"></textarea>
+        <div class="actions">
+          <button class="btn" type="button" id="cancelEdit">Cancel</button>
+          <button class="btn" type="button" id="saveEdit">Save</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="confirmModal">
+      <div class="modal">
+        <h3 id="confirmTitle" style="margin-top:0">Confirm action</h3>
+        <p id="confirmMsg" style="opacity:.9;margin-top:6px;line-height:1.35"></p>
+        <div class="actions">
+          <button class="btn" type="button" id="confirmProceed">Bring up tray</button>
+          <button class="btn" type="button" id="confirmCancel">Cancel</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="modal-backdrop" id="statusModal">
+      <div class="modal">
+        <h3 id="statusTitle" style="margin-top:0">Bringing up tray…</h3>
+        <p id="statusMsg" style="opacity:.9;margin-top:14px;line-height:1.4"></p>
+
+        <div class="actions">
+          <button class="btn" type="button" id="statusReturn">Return tray</button>
+        </div>
+      </div>
+    </div>
+<script>
+
+const trays = JSON.parse(document.getElementById("data-trays").textContent);
+const trayItems = JSON.parse(document.getElementById("data-items").textContent);
+let currentIndex = 0;
+let highlightOn = false;
+let highlightTerm = "";
+let qty = 0;
+let qtyMax = 10;
+let selectedComponent = null;
+let selectedMax = 0;
+let selectedQty = 0;
+let selectedTrayId = null;
+let pendingDelta = null;
+let pendingQty = 0;
+let pendingName = "";
+let pendingTrayId = "";
+let pendingSection = "";
+let currentTrayId = "";
+
+const stackEl = document.getElementById("stack");
+const trayTitleEl = document.getElementById("trayTitle");
+const currentContainer = document.getElementById("currentContainer");
+const allItemsContainer = document.getElementById("allItemsContainer");
+const searchInputEl = document.getElementById("searchInput");
+const selectedNameEl = document.getElementById("selectedName");
+const selectedAvailableEl = document.getElementById("selectedAvailable");
+const selectedSectionEl = document.getElementById("selectedSection");
+const qtyMinusEl = document.getElementById("qtyMinus");
+const qtyPlusEl  = document.getElementById("qtyPlus");
+const qtyValueEl = document.getElementById("qtyValue");
+const btnStoreEl = document.getElementById("btnStore");
+const btnRetrieveEl = document.getElementById("btnRetrieve");
+const editErrorBoxEl = document.getElementById("editErrorBox");
+const confirmModalEl = document.getElementById("confirmModal");
+const confirmMsgEl = document.getElementById("confirmMsg");
+const confirmTitleEl = document.getElementById("confirmTitle");
+const confirmProceedEl = document.getElementById("confirmProceed");
+const confirmCancelEl = document.getElementById("confirmCancel");
+const confirmCloseEl = document.getElementById("confirmClose");
+const statusModalEl = document.getElementById("statusModal");
+const statusTitleEl = document.getElementById("statusTitle");
+const statusMsgEl = document.getElementById("statusMsg");
+const statusReturnEl = document.getElementById("statusReturn");
+
+searchInputEl.addEventListener("input", () => {
+  renderAllItemsList(searchInputEl.value);
+});
+
+function normalizeItem(entry){
+  if (typeof entry === "string"){
+    return { name: entry.trim(), qty: 0, section: "" };
+  }
+  return {
+    name: String(entry?.name ?? "").trim(),
+    qty: Number(entry?.qty ?? 0),
+    section: String(entry?.section ?? "").trim()
+  };
+}
+
+function getCurrentTray(){ 
+  return trays[currentIndex]; 
+}
+
+function renderStack() {
+  stackEl.innerHTML = "";
+  for (let offset = -1; offset <= 1; offset++) {
+    const index = (currentIndex + offset + trays.length) % trays.length;
+    const tray = trays[index];
+    const card = document.createElement("div");
+    card.className = "card";
+    const img = document.createElement("img");
+    img.src = `/static/${tray.image}?t=${Date.now()}`;
+    card.appendChild(img);
+    const badge = document.createElement("div");
+    badge.className = "tray-badge";
+    badge.textContent = `Tray ${tray.id}`;
+    card.appendChild(badge);
+    const scale = offset === 0 ? 1 : 0.9;
+    const yOffset = offset * 275;
+    const zIndex = offset === 0 ? 3 : 2 - Math.abs(offset);
+    card.style.zIndex = zIndex; 
+    card.style.width = offset === 0 ? "80%" : "70%";
+    card.style.transform = `translate(-50%, calc(-50% + ${yOffset}px)) scale(${scale})`;
+    card.style.opacity = offset === 0 ? "1" : "0.75";
+    stackEl.appendChild(card);
+  }
+  renderSidebar();
+}
+
+function renderTraySection(container, tray, items, highlightTermLocal, clickableHeader, editableSection){
+  const sec = document.createElement("div");
+  sec.className = "tray-section";
+  const header = document.createElement("div");
+  header.className = "header";
+  const title = document.createElement("div");
+  title.textContent = `Tray ${tray.id}`;
+  header.appendChild(title);
+  if (clickableHeader){
+    const edit = document.createElement("button");
+    edit.className = "btn";
+    edit.textContent = "Edit";
+    edit.addEventListener("click", () => openEditModal(tray));
+    header.appendChild(edit);
+  }
+  sec.appendChild(header);
+  if (!items.length){
+    const p = document.createElement("div");
+    p.className = "no-items";
+    p.textContent = "No items yet. Click Edit to add.";
+    sec.appendChild(p);
+  } else {
+    const table = document.createElement("table");
+    table.className = "items-table";
+    const thead = document.createElement("thead");
+    thead.innerHTML = "<tr><th>Item</th><th style='width:140px'>Tray Section</th></tr>";
+    table.appendChild(thead);
+    const tbody = document.createElement("tbody");
+    const term = (highlightOn ? highlightTermLocal : "").toLowerCase();
+    for (const item of items) {
+      const entry = normalizeItem(item);
+      const name = entry.name;
+      const qty = entry.qty;
+      const section = (entry.section || "").trim();
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.textContent = `${name} (${qty})`;
+      tr.appendChild(td);
+      const td2 = document.createElement("td");
+      td2.textContent = section ? section : "—";
+      tr.appendChild(td2);
+      tr.addEventListener("click", () => {
+        selectedTrayId = String(tray.id);
+        updateSelectedPanel(name, qty);
+        if (selectedSectionEl) selectedSectionEl.textContent = section || "—";
+      });
+      tbody.appendChild(tr);
+    }
+    table.appendChild(tbody);
+    sec.appendChild(table);
+  }
+  container.appendChild(sec);
+}
+
+function getAllUniqueItems() {
+  const set = new Set();
+  for (const items of Object.values(trayItems)) {
+    for (const it of (items || [])) {
+      const name = normalizeItem(it).name;  
+      if (name) set.add(name);
+    }
+  }
+  return Array.from(set).sort((a, b) =>
+    a.localeCompare(b, undefined, { sensitivity: "base" })
+  );
+}
+
+function jumpToFirstTrayContaining(term) {
+  const lower = term.toLowerCase();
+  let foundTrayId = null;
+  for (const [trayId, items] of Object.entries(trayItems)) {
+    if ((items || []).some(it => normalizeItem(it).name.toLowerCase().includes(lower))) {
+      foundTrayId = Number(trayId);
+      break;
+    }
+  }
+  if (foundTrayId != null) {
+    const idx = trays.findIndex(t => Number(t.id) === Number(foundTrayId));
+    if (idx !== -1) currentIndex = idx;
+  }
+}
+
+function clampQtyBadge(n) {
+  const num = Number(n);
+  if (!Number.isFinite(num) || num <= 0) return "0";
+  if (num > 99) return "99+";
+  return String(Math.floor(num)); // 0–99
+}
+
+function getAllComponentsWithTotals() {
+  const map = new Map();
+  for (const trayList of Object.values(trayItems)) {
+    for (const it of (trayList || [])) {
+      const e = normalizeItem(it);
+      if (!e.name) continue;
+      const key = e.name.toLowerCase();
+      if (!map.has(key)) map.set(key, { name: e.name, totalQty: 0 });
+      map.get(key).totalQty += Number(e.qty) || 0;
+    }
+  }
+  return Array.from(map.values()).sort((a, b) =>
+    a.name.localeCompare(b.name, undefined, { sensitivity: "base" })
+  );
+}
+
+function getSectionSummaryForComponent(componentName){
+  const key = String(componentName || "").trim().toLowerCase();
+  if (!key) return { text: "—", firstTrayId: null };
+  const hits = [];
+  for (const [trayId, items] of Object.entries(trayItems)){
+    for (const it of (items || [])){
+      const e = normalizeItem(it);
+      if (e.name.toLowerCase() !== key) continue;
+      const section = (e.section || "").trim();
+      if (section) hits.push({ trayId: String(trayId), section });
+    }
+  }
+  if (hits.length === 0) return { text: "—", firstTrayId: null };
+  const uniq = [];
+  const seen = new Set();
+  for (const h of hits){
+    const k = `${h.trayId}::${h.section}`;
+    if (!seen.has(k)){
+      seen.add(k);
+      uniq.push(h);
+    }
+  }
+  if (uniq.length === 1){
+    return { text: `${uniq[0].section} (Tray ${uniq[0].trayId})`, firstTrayId: uniq[0].trayId };
+  }
+  const preview = uniq.slice(0, 3).map(h => `${h.section} (T${h.trayId})`).join(", ");
+  const more = uniq.length > 3 ? ` +${uniq.length - 3} more` : "";
+  return { text: `Multiple: ${preview}${more}`, firstTrayId: uniq[0].trayId };
+}
+
+async function applyInventoryDelta(delta){
+  if (!selectedTrayId){
+    alert("Select the item from 'Current tray' before using Store/Retrieve.");
+    return;
+  }
+  if (!selectedComponent){
+    alert("No component selected.");
+    return;
+  }
+  const change = Number(selectedQty) || 0;
+  if (change <= 0){
+    alert("Set a quantity greater than 0.");
+    return;
+  }
+  const trayIdStr = String(selectedTrayId);
+  const list = (trayItems[trayIdStr] || []).map(normalizeItem);
+  const idx = list.findIndex(x => x.name === selectedComponent);
+  if (idx === -1){
+    if (delta > 0){
+      const sec = (selectedSectionEl?.textContent || "").trim();
+      const section = (sec && sec !== "—" && !sec.startsWith("Multiple")) ? sec.split(" ")[0] : "";
+      list.push({ name: selectedComponent, qty: change, section });
+    } else {
+      alert("Cannot retrieve: item not found in this tray.");
+      return;
+    }
+  } else {
+    const current = Number(list[idx].qty) || 0;
+    let next = current + (delta * change);
+    if (next < 0) next = 0;
+    list[idx].qty = next;
+  }
+  try {
+    const res = await fetch(`/api/tray/${trayIdStr}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items: list })
+    });
+    if (!res.ok) {
+      let msg = "Failed to save";
+      try {
+        const errData = await res.json();
+        if (errData?.error) msg = errData.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    trayItems[String(data.tray_id)] = data.items;
+    const updatedList = (trayItems[String(data.tray_id)] || []).map(normalizeItem);
+    const found = updatedList.find(x => x.name === selectedComponent);
+    const newQty = Number(found?.qty ?? 0);
+    selectedMax = newQty;
+    selectedAvailableEl.textContent = `Available: ${selectedMax}`;
+    selectedQty = 0;
+    syncQtyUI();
+    renderStack();
+  } catch (err) {
+    alert("Error: " + err.message);
+  }
+}
+
+function openConfirmModal(actionWord, delta){
+  if (!selectedComponent){
+    alert("No component selected.");
+    return;
+  }
+  const q = Number(selectedQty) || 0;
+  if (q <= 0){
+    alert("Set a quantity greater than 0.");
+    return;
+  }
+  if (!selectedTrayId){
+    alert("No tray selected for this component.");
+    return;
+  }
+  pendingDelta = delta;
+  pendingQty = q;
+  pendingName = selectedComponent;
+  pendingTrayId = String(selectedTrayId);
+  const secText = (selectedSectionEl?.textContent || "").trim();
+  const secToken = secText.split(/\s+/)[0]; // e.g. "B3"
+  pendingSection = /^[A-E][1-6]$/.test(secToken) ? secToken : "—";
+  confirmTitleEl.textContent = `Confirm ${actionWord}`;
+  confirmMsgEl.innerHTML =
+  `You are about to ${actionWord} ` +
+  `<span class="confirm-highlight">${pendingQty} ${pendingName}</span> ` +
+  `into <span class="confirm-highlight">Tray ${pendingTrayId}</span>, ` +
+  `at <span class="confirm-highlight">Section ${pendingSection}</span>.`;
+  confirmModalEl.style.display = "flex";
+}
+
+function closeConfirmModal(){
+  confirmModalEl.style.display = "none";
+  pendingDelta = null;
+  pendingQty = 0;
+  pendingName = "";
+  pendingTrayId = "";
+  pendingSection = "";
+}
+
+confirmCancelEl.addEventListener("click", closeConfirmModal);
+
+confirmProceedEl.addEventListener("click", async () => {
+  const delta = pendingDelta;
+  const actionWord = (delta === 1) ? "Store" : "Retrieve";
+  const trayId = pendingTrayId;
+  const section = pendingSection;
+  currentTrayId = trayId;
+  closeConfirmModal();
+  if (delta === 1 || delta === -1) {
+    try {
+      await sendToArduino({
+        tray: Number(trayId),
+        action: actionWord.toLowerCase()
+      });
+    } catch (err) {
+      console.error("sendToArduino failed:", err);
+    }
+    await applyInventoryDelta(delta);
+    openStatusModal(actionWord, trayId, section);
+  }
+});
+
+function highlightMatch(text, term) {
+  const q = (term || "").trim();
+  if (!q) return escapeHtml(text);
+  const escapedTerm = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const re = new RegExp(escapedTerm, "gi");
+  return escapeHtml(text).replace(re, (m) => `<span class="search-highlight">${m}</span>`);
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
+}
+
+function findLowestTrayForComponent(name){
+  const key = String(name || "").trim().toLowerCase();
+  if (!key) return null;
+  const hits = [];
+  for (const [trayId, items] of Object.entries(trayItems)){
+    const list = items || [];
+    const found = list.map(normalizeItem).find(it => it.name.toLowerCase() === key);
+    if (found){
+      hits.push({
+        trayId: Number(trayId),
+        item: found
+      });
+    }
+  }
+  if (!hits.length) return null;
+  hits.sort((a, b) => a.trayId - b.trayId);
+  return hits[0];
+}
+
+function renderAllItemsList(filterTerm = "") {
+  allItemsContainer.innerHTML = "";
+  const all = getAllComponentsWithTotals();
+  const q = (filterTerm || "").trim().toLowerCase();
+  const filtered = q
+    ? all.filter(comp => comp.name.toLowerCase().includes(q))
+    : all;
+  const wrap = document.createElement("div");
+  wrap.className = "all-items";
+  for (const comp of filtered) {
+    const row = document.createElement("div");
+    row.className = "all-item";
+    const icon = document.createElement("div");
+    icon.className = "item-icon";
+    icon.textContent = clampQtyBadge(comp.totalQty);
+    const label = document.createElement("div");
+    label.className = "item-name";
+    label.innerHTML = highlightMatch(comp.name, filterTerm);
+    row.appendChild(icon);
+    row.appendChild(label);
+    row.addEventListener("click", () => {
+      highlightOn = true;
+      highlightTerm = comp.name;
+      const hit = findLowestTrayForComponent(comp.name);
+      if (!hit){
+        selectedTrayId = null;
+        updateSelectedPanel(comp.name, comp.totalQty);
+        selectedSectionEl.textContent = "—";
+        renderStack();
+        return;
+      }
+      selectedTrayId = String(hit.trayId);
+      const trayQty = Number(hit.item.qty) || 0;
+      const traySection = (hit.item.section || "").trim();
+      updateSelectedPanel(comp.name, trayQty);
+      selectedSectionEl.textContent = traySection || "—";
+      const idx = trays.findIndex(t => Number(t.id) === Number(hit.trayId));
+      if (idx !== -1) currentIndex = idx;
+      renderStack();
+    });
+    wrap.appendChild(row);
+  }
+  allItemsContainer.appendChild(wrap);
+}
+
+function renderSidebar(){
+  const tray = getCurrentTray();
+  trayTitleEl.textContent = `Tray ${tray.id}`;
+  currentContainer.innerHTML = "";
+  const searchVal = document.getElementById("searchInput").value;
+  renderAllItemsList(searchVal);
+  const items = (trayItems[String(tray.id)] || []);
+  renderTraySection(currentContainer, tray, items, "", true, true);
+  if (highlightOn && highlightTerm){
+    const q = highlightTerm.toLowerCase();
+    const matchingTrays = trays.filter(t => (trayItems[String(t.id)] || []).some(it => normalizeItem(it).name.toLowerCase().includes(q)));
+    for (const mt of matchingTrays){
+      const its = trayItems[String(mt.id)] || [];
+    }
+  }
+}
+
+function setActionButtonsEnabled(enabled){
+  btnStoreEl.disabled = !enabled;
+  btnRetrieveEl.disabled = !enabled;
+}
+
+stackEl.addEventListener("wheel", (event) => {
+  event.preventDefault();
+  if (event.deltaY > 0) {
+    currentIndex = (currentIndex + 1) % trays.length;
+  } else {
+    currentIndex = (currentIndex - 1 + trays.length) % trays.length;
+  }
+  highlightOn = false; highlightTerm = "";
+  renderStack();
+});
+
+document.getElementById("searchForm").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const q = document.getElementById("searchInput").value.trim();
+  if (!q) return;
+  const lower = q.toLowerCase();
+  let foundTrayId = null;
+  for (const [trayId, items] of Object.entries(trayItems)){
+    if (items.some(it => normalizeItem(it).name.toLowerCase().includes(lower))) { foundTrayId = Number(trayId); break; }
+  }
+  if (foundTrayId != null){
+    const idx = trays.findIndex(t => Number(t.id) === Number(foundTrayId));
+    if (idx !== -1) currentIndex = idx;
+    highlightOn = true; highlightTerm = q;
+    renderStack();
+  }
+});
+
+function updateSelectedPanel(name, totalQty){
+  selectedComponent = name;
+  selectedMax = Number(totalQty) || 0;
+  selectedQty = 0;
+  selectedNameEl.textContent = name;
+  selectedAvailableEl.textContent = `Available: ${selectedMax}`;
+  selectedSectionEl.textContent = "—";
+  setActionButtonsEnabled(true);
+  syncQtyUI();
+}
+
+function syncQtyUI(){
+  qtyValueEl.textContent = String(selectedQty);
+  const hasSelection = !!selectedComponent;
+  const hasQty = selectedQty > 0;
+  btnStoreEl.disabled = !(hasSelection && hasQty);
+  btnRetrieveEl.disabled = !(hasSelection && hasQty);
+}
+
+function setSelectedQty(val){
+  selectedQty = Math.min(99, Math.max(0, Number(val) || 0));
+  syncQtyUI();
+}
+
+function setQtyMax(max){
+  qtyMax = Math.max(0, Number(max) || 0);
+  if (qty > qtyMax) qty = qtyMax;
+  syncQtyUI();
+}
+function setQty(newVal){
+  qty = Math.min(qtyMax, Math.max(0, Number(newVal) || 0));
+  syncQtyUI();
+}
+
+qtyMinusEl.addEventListener("click", () => setSelectedQty(selectedQty - 1));
+qtyPlusEl.addEventListener("click",  () => setSelectedQty(selectedQty + 1));
+setQtyMax(10);
+setQty(0);
+setActionButtonsEnabled(false);
+btnStoreEl.addEventListener("click", () => openConfirmModal("Store", +1));
+btnRetrieveEl.addEventListener("click", () => openConfirmModal("Retrieve", -1));
+
+function normalizeSection(raw){
+  return String(raw || "").trim().toUpperCase();
+}
+
+function isValidSection(section){
+  return /^[A-E][1-6]$/.test(section);
+}
+
+function validateTrayItemsOrThrow(items, rawLines){
+  const used = new Map();
+  for (let i = 0; i < items.length; i++){
+    const it = items[i];
+    const sec = normalizeSection(it.section);
+    if (!sec) continue;
+    if (!isValidSection(sec)){
+      const lineNo = i + 1;
+      throw new Error(`Invalid Tray Section at line ${lineNo}: "${sec}"`);
+    }
+    if (used.has(sec)){
+      const other = used.get(sec);
+      throw new Error(`Tray Section ${sec} is occupied by "${other}"`);
+    }
+    used.set(sec, it.name);
+    it.section = sec;
+  }
+}
+
+function showEditError(message, details=""){
+  if (!editErrorBoxEl) return;
+  editErrorBoxEl.innerHTML = details
+    ? `${escapeHtml(message)}<span class="small">${escapeHtml(details)}</span>`
+    : `${escapeHtml(message)}`;
+  editErrorBoxEl.style.display = "block";
+}
+
+function clearEditError(){
+  if (!editErrorBoxEl) return;
+  editErrorBoxEl.textContent = "";
+  editErrorBoxEl.style.display = "none";
+}
+
+function openStatusModal(actionWord, trayId, section){
+  const sec = (section && section !== "—") ? section : "—";
+  statusTitleEl.textContent = `Bringing up Tray ${trayId}…..`;
+  statusMsgEl.innerHTML =
+    `Please ${actionWord.toLowerCase()} the items from ` +
+    `<span class="confirm-highlight">Section ${sec}</span>:`;
+  statusModalEl.style.display = "flex";
+}
+
+function closeStatusModal(){
+  statusModalEl.style.display = "none";
+}
+
+statusReturnEl.addEventListener("click", async () => {
+  const trayIdNum = Number(currentTrayId);
+
+  try {
+    await sendToArduino({
+      tray: trayIdNum,
+      action: "return"
+    });
+
+    const res = await fetch(`/api/tray/${trayIdNum}/capture`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" }
+    });
+
+    const data = await res.json().catch(() => null);
+
+    if (!res.ok || !data?.ok) {
+      throw new Error(`${data?.stage || "camera"}: ${data?.error || "Failed to capture tray image"}`);
+    }
+
+    const trayObj = trays.find(t => Number(t.id) === trayIdNum);
+    if (trayObj) {
+      trayObj.image = data.image;
+    }
+
+    renderStack();
+  } catch (err) {
+    console.error("return/capture failed:", err);
+    alert("Return/capture failed: " + err.message);
+  }
+
+  closeStatusModal();
+});
+
+async function sendToArduino(payload) {
+  const res = await fetch("/tray", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+  const data = await res.json().catch(() => null);
+  if (!res.ok || !data?.ok) {
+    throw new Error(`${data?.stage || "serial"}: ${data?.error || "Failed to send tray signal"}`);
+  }
+  console.log("Sent to Raspberry Pi / Arduino:", data);
+  return data;
+}
+
+// Edit modal
+const modal = document.getElementById("modal");
+const textarea = document.getElementById("editTextarea");
+function openEditModal(tray){
+  clearEditError();
+  document.getElementById("modalTitle").textContent = `Edit Tray ${tray.id} items`;
+  textarea.value = (trayItems[String(tray.id)] || [])
+  .map(it => {
+    const e = normalizeItem(it);
+    return `${e.name}, ${e.qty}, ${e.section || ""}`;
+  })
+  .join("\n");
+  modal.dataset.trayId = String(tray.id);
+  modal.style.display = "flex";
+}
+document.addEventListener("click", (e) => {
+  if (e.target && e.target.id === "editBtn"){
+    openEditModal(getCurrentTray());
+  }
+});
+document.getElementById("cancelEdit").addEventListener("click", () => { modal.style.display = "none"; });
+document.getElementById("saveEdit").addEventListener("click", async () => {
+  const trayIdStr = modal.dataset.trayId || String(getCurrentTray().id);
+  const items = textarea.value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+    const parts = line.split(",");
+    const name = parts[0]?.trim() ?? "";
+    const qtyRaw = parts[1]?.trim() ?? "0";
+    const section = parts.slice(2).join(",").trim();
+    const qty = Number(qtyRaw);
+    return {
+      name,
+      qty: Number.isFinite(qty) ? qty : 0,
+      section: section
+    };
+  }).filter(it => it.name)
+  try {
+    validateTrayItemsOrThrow(items);
+    clearEditError();
+  } catch (e) {
+    showEditError(
+      "ERROR! Allowed Tray Sections are A1 to E6.",
+      e.message
+    );
+    return;
+  }
+  try {
+    const res = await fetch(`/api/tray/${trayIdStr}/items`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ items })
+    });
+    if (!res.ok) {
+      let msg = "Failed to save";
+      try {
+        const errData = await res.json();
+        if (errData && errData.error) msg = errData.error;
+      } catch {}
+      throw new Error(msg);
+    }
+    const data = await res.json();
+    trayItems[String(data.tray_id)] = data.items;
+    if (selectedComponent && selectedTrayId && String(data.tray_id) === String(selectedTrayId)) {
+      const updatedList = (trayItems[String(data.tray_id)] || []).map(normalizeItem);
+      const found = updatedList.find(it => it.name === selectedComponent);
+      selectedSectionEl.textContent = (found?.section || "").trim() || "—";
+    }
+    highlightOn = false; highlightTerm = "";
+    modal.style.display = "none";
+    renderStack();
+  } catch (err) {
+    showEditError("Could not save changes.", err.message);
+  }
+});
+
+renderStack();
+</script>
+</body>
+</html>
