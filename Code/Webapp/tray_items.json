@@ -1,0 +1,47 @@
+{
+  "1": [
+    {
+      "name": "Towerpro Servo Motor",
+      "qty": 6,
+      "section": "A4"
+    }
+  ],
+  "2": [
+    {
+      "name": "6-pin connect terminal",
+      "qty": 14,
+      "section": "E2"
+    }
+  ],
+  "3": [],
+  "4": [],
+  "5": [
+    {
+      "name": "wires #2",
+      "qty": 14,
+      "section": "C6"
+    }
+  ],
+  "6": [
+    {
+      "name": "Coupler",
+      "qty": 24,
+      "section": "A2"
+    },
+    {
+      "name": "Stuff1",
+      "qty": 12,
+      "section": "A6"
+    },
+    {
+      "name": "Stuff2",
+      "qty": 8,
+      "section": "C3"
+    },
+    {
+      "name": "Stuff3. 17",
+      "qty": 6,
+      "section": "A5"
+    }
+  ]
+}
